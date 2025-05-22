@@ -1,52 +1,74 @@
-// Simulación de datos (luego se conectará a la BD)
-let entradas = [];
+const prisma = require("../config/prisma");
 
-exports.obtenerEntradas = (req, res) => {
-  res.json(entradas);
-};
-
-exports.crearEntrada = (req, res) => {
-  const { titulo, descripcion } = req.body;
-
-  if (!titulo) {
-    return res.status(400).json({ mensaje: "El título es obligatorio." });
+// GET /api/entradas
+exports.obtenerEntradas = async (req, res) => {
+  try {
+    const entradas = await prisma.entradas.findMany();
+    res.json(entradas);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener entradas." });
   }
-
-  const nueva = {
-    id: entradas.length + 1,
-    titulo,
-    descripcion: descripcion || "",
-    completado: false,
-    fecha: new Date()
-  };
-
-  entradas.push(nueva);
-  res.status(201).json(nueva);
 };
 
-exports.actualizarEntrada = (req, res) => {
-    const { id } = req.params;
-    const { titulo, descripcion, completado } = req.body;
-  
-    const entrada = entradas.find(e => e.id === parseInt(id));
-    if (!entrada) {
-      return res.status(404).json({ mensaje: "Entrada no encontrada." });
+// POST /api/entradas
+exports.crearEntrada = async (req, res) => {
+  try {
+    const { usuario_id, tipo, titulo, descripcion, fecha_objetivo } = req.body;
+
+    if (!titulo || !usuario_id || !tipo) {
+      return res.status(400).json({ error: "Campos obligatorios faltantes." });
     }
-  
-    if (titulo !== undefined) entrada.titulo = titulo;
-    if (descripcion !== undefined) entrada.descripcion = descripcion;
-    if (completado !== undefined) entrada.completado = completado;
-  
-    res.json(entrada);
-  };
-  
-  exports.eliminarEntrada = (req, res) => {
+
+    const nueva = await prisma.entradas.create({
+      data: {
+        titulo,
+        tipo,
+        usuario_id,
+        descripcion,
+        fecha_objetivo: fecha_objetivo ? new Date(fecha_objetivo) : null,
+      },
+    });
+
+    res.status(201).json(nueva);
+  } catch (error) {
+    res.status(500).json({ error: "Error al crear entrada. " + error });
+  }
+};
+
+// PUT /api/entradas/:id
+exports.actualizarEntrada = async (req, res) => {
+  try {
     const { id } = req.params;
-    const index = entradas.findIndex(e => e.id === parseInt(id));
-    if (index === -1) {
-      return res.status(404).json({ mensaje: "Entrada no encontrada." });
-    }
-  
-    const eliminada = entradas.splice(index, 1);
-    res.json({ mensaje: "Entrada eliminada.", entrada: eliminada[0] });
-  };
+    const { titulo, descripcion, tipo, fecha_objetivo, completado } = req.body;
+
+    const actualizada = await prisma.entradas.update({
+      where: { id: parseInt(id) },
+      data: {
+        titulo,
+        descripcion,
+        tipo,
+        fecha_objetivo: fecha_objetivo ? new Date(fecha_objetivo) : undefined,
+        completado,
+      },
+    });
+
+    res.json(actualizada);
+  } catch (error) {
+    res.status(404).json({ error: "Entrada no encontrada o error al actualizar." });
+  }
+};
+
+// DELETE /api/entradas/:id
+exports.eliminarEntrada = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const eliminada = await prisma.entradas.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.json({ mensaje: "Entrada eliminada.", entrada: eliminada });
+  } catch (error) {
+    res.status(404).json({ error: "Entrada no encontrada o error al eliminar." });
+  }
+};

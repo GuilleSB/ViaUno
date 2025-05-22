@@ -1,2 +1,0 @@
-User=postgres
-Clave=902u83m!$#
